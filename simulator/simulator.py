@@ -1,148 +1,277 @@
-import requests
-import threading
-import time
-from datetime import datetime, timezone
+Mini Device Fleet Monitor
 
-BASE_URL = "http://localhost:8080"
-HEARTBEAT_INTERVAL = 5
+A small Spring Boot application that monitors a simulated fleet of devices.
 
-devices = {
-"device-01": "Lab Device 01",
-"device-02": "Lab Device 02",
-"device-03": "Lab Device 03",
-"device-04": "Lab Device 04",
-"device-05": "Lab Device 05",
+Each registered device periodically sends a heartbeat. The application stores the latest heartbeat and automatically determines whether a device is ONLINE or OFFLINE based on the heartbeat timeout.
+
+Features
+
+Register a device
+
+Receive device heartbeats
+
+List all registered devices
+
+Get details for a specific device
+
+View fleet summary
+
+Automatic ONLINE/OFFLINE status
+
+30-second heartbeat timeout
+
+Python simulator for 5 devices
+
+Unit and controller tests
+
+Technology
+
+Java 21
+
+Spring Boot
+
+Maven
+
+Python 3
+
+JUnit
+
+MockMvc
+
+Project Structure
+mini-device-fleet-monitor/
+├── fleet-monitor/
+│   ├── pom.xml
+│   ├── README.md
+│   └── src/
+│       ├── main/
+│       │   └── java/
+│       └── test/
+│           └── java/
+│
+└── simulator/
+    └── simulator.py
+
+How the Application Works
+
+The application keeps registered devices in memory.
+
+When a device sends a heartbeat, the application stores the timestamp of the latest heartbeat.
+
+A device is considered:
+
+ONLINE — heartbeat received within the last 30 seconds
+
+OFFLINE — no heartbeat received for more than 30 seconds
+
+The status is calculated automatically whenever device information is requested.
+
+Running the Spring Boot Application
+
+Open PowerShell and navigate to the Spring Boot project:
+
+cd C:\Users\HP\Downloads\fleet-monitor\fleet-monitor
+
+
+Run the application using Maven Wrapper:
+
+.\mvnw.cmd spring-boot:run
+
+
+The application starts on:
+
+http://localhost:8080
+
+
+Alternatively, the application can be started directly from IntelliJ IDEA by running FleetMonitorApplication.
+
+Running Tests
+
+From the fleet-monitor directory:
+
+.\mvnw.cmd test
+
+
+The test suite covers device registration, heartbeat handling, device lookup, fleet summary, validation, duplicate devices, unknown devices, and timeout behavior.
+
+Device Simulator
+
+The project includes a Python simulator that simulates five devices:
+
+device-01
+device-02
+device-03
+device-04
+device-05
+
+
+Each device sends a heartbeat every 5 seconds.
+
+Install Python dependency
+
+From the simulator directory:
+
+cd C:\Users\HP\Downloads\fleet-monitor\simulator
+
+
+Install the required package:
+
+python -m pip install requests
+
+Start the simulator
+
+Make sure the Spring Boot application is running first.
+
+Then run:
+
+python simulator.py
+
+
+The simulator provides commands such as:
+
+stop device-01
+start device-01
+status
+exit
+
+
+For example, to demonstrate the timeout behavior:
+
+> stop device-01
+
+
+After stopping the device, wait more than 30 seconds. The application will report device-01 as OFFLINE.
+
+Start it again with:
+
+> start device-01
+
+
+The device will begin sending heartbeats again and will become ONLINE.
+
+API Endpoints
+Register a Device
+POST /devices
+Content-Type: application/json
+
+
+Request:
+
+{
+  "id": "device-01",
+  "name": "Lab Device 01"
 }
 
-running = {device_id: True for device_id in devices}
 
-def register_device(device_id, name):
-try:
-response = requests.post(
-f"{BASE_URL}/devices",
-json={
-"id": device_id,
-"name": name
-},
-timeout=5
-)
+Example response:
 
-    if response.status_code == 201:
-        print(f"{device_id} registered")
-    elif response.status_code == 409:
-        print(f"{device_id} already registered")
-    else:
-        print(
-            f"{device_id} registration failed: "
-            f"{response.status_code}"
-        )
+{
+  "id": "device-01",
+  "name": "Lab Device 01",
+  "status": "OFFLINE",
+  "lastHeartbeat": null
+}
 
-except requests.RequestException as e:
-    print(f"{device_id} registration error: {e}")
+Send a Heartbeat
+POST /devices/{id}/heartbeat
+Content-Type: application/json
 
 
-def send_heartbeat(device_id):
-try:
-timestamp = datetime.now(timezone.utc).isoformat()
+Request:
 
-    response = requests.post(
-        f"{BASE_URL}/devices/{device_id}/heartbeat",
-        json={
-            "timestamp": timestamp,
-            "status": "OK"
-        },
-        timeout=5
-    )
-
-    if response.ok:
-        print(f"{device_id} -> heartbeat sent")
-    else:
-        print(
-            f"{device_id} -> heartbeat failed: "
-            f"{response.status_code}"
-        )
-
-except requests.RequestException as e:
-    print(f"{device_id} -> heartbeat error: {e}")
+{
+  "timestamp": "2026-09-30T10:00:00Z",
+  "status": "OK"
+}
 
 
-def simulate_device(device_id):
-while True:
-if running[device_id]:
-send_heartbeat(device_id)
+Example:
 
-    time.sleep(HEARTBEAT_INTERVAL)
+POST /devices/device-01/heartbeat
 
-
-def show_status():
-print("\nSimulator status:")
-
-for device_id in devices:
-    status = "RUNNING" if running[device_id] else "STOPPED"
-    print(f"  {device_id}: {status}")
-
-print()
+List Devices
+GET /devices
 
 
-def main():
-print("Registering devices...\n")
+Example response:
 
-for device_id, name in devices.items():
-    register_device(device_id, name)
+[
+  {
+    "id": "device-01",
+    "name": "Lab Device 01",
+    "status": "ONLINE",
+    "lastHeartbeat": "2026-09-30T10:00:00Z"
+  }
+]
 
-print("\nStarting heartbeat simulator...")
-print("Heartbeat interval: 5 seconds")
-print()
-print("Commands:")
-print("  stop device-01")
-print("  start device-01")
-print("  status")
-print("  exit")
-print()
-
-for device_id in devices:
-    thread = threading.Thread(
-        target=simulate_device,
-        args=(device_id,),
-        daemon=True
-    )
-    thread.start()
-
-try:
-    while True:
-        command = input("> ").strip().lower()
-
-        if command == "exit":
-            print("Simulator stopped.")
-            break
-
-        elif command == "status":
-            show_status()
-
-        elif command.startswith("stop "):
-            device_id = command.split(" ", 1)[1]
-
-            if device_id in running:
-                running[device_id] = False
-                print(f"{device_id} stopped.")
-            else:
-                print(f"Unknown device: {device_id}")
-
-        elif command.startswith("start "):
-            device_id = command.split(" ", 1)[1]
-
-            if device_id in running:
-                running[device_id] = True
-                print(f"{device_id} started.")
-            else:
-                print(f"Unknown device: {device_id}")
-
-        else:
-            print("Unknown command.")
-
-except KeyboardInterrupt:
-    print("\nSimulator stopped.")
+Get Device Details
+GET /devices/{id}
 
 
-if name == "main":
-main()
+Example:
+
+GET /devices/device-01
+
+Fleet Summary
+GET /summary
+
+
+Example response:
+
+{
+  "total": 5,
+  "online": 4,
+  "offline": 1
+}
+
+Error Handling
+
+The application handles common errors such as:
+
+Registering a device with an existing ID → 409 Conflict
+
+Requesting an unknown device → 404 Not Found
+
+Sending a heartbeat for an unknown device → 404 Not Found
+
+Invalid request data → 400 Bad Request
+
+Design Notes
+
+The application intentionally uses in-memory storage because this project is designed as a small three-hour engineering exercise.
+
+A ConcurrentHashMap is used for thread-safe access because multiple simulated devices can send heartbeats concurrently.
+
+The service uses Clock injection for time calculations, which makes the 30-second timeout behavior easier to test deterministically.
+
+AI Usage
+
+AI tools were used as an engineering assistant during development for:
+
+Discussing project structure and implementation approaches
+
+Reviewing Java/Spring Boot code
+
+Identifying compilation and test issues
+
+Improving test coverage
+
+Troubleshooting Maven and Git setup
+
+Reviewing documentation
+
+The final implementation was tested locally and adjusted based on the application's actual behavior.
+
+Limitations
+
+Device data is stored only in memory and is lost when the application restarts.
+
+Authentication and authorization are not implemented.
+
+The simulator and application communicate over localhost.
+
+No persistent database is required for this exercise.
+
+Author
+
+GitHub: https://github.com/Ryuga-Mvp
