@@ -1,0 +1,50 @@
+### Register device 1
+POST http://localhost:8080/devices
+Content-Type: application/json
+
+{
+  "id": "device-01",
+  "name": "Lab Device 01"
+}
+
+
+### Register device 2
+POST http://localhost:8080/devices
+Content-Type: application/json
+
+{
+  "id": "device-02",
+  "name": "Lab Device 02"
+}
+
+
+### Send heartbeat
+POST http://localhost:8080/devices/device-01/heartbeat
+Content-Type: application/json
+
+{
+  "timestamp": "2026-09-30T10:30:00Z",
+  "status": "OK"
+}
+
+
+### Send heartbeat device 2
+POST http://localhost:8080/devices/device-02/heartbeat
+Content-Type: application/json
+
+{
+  "timestamp": "2026-09-30T10:30:00Z",
+  "status": "OK"
+}
+
+
+### List devices
+GET http://localhost:8080/devices
+
+
+### Get device
+GET http://localhost:8080/devices/device-01
+
+
+### Fleet summary
+GET http://localhost:8080/summary
